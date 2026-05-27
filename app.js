@@ -83,7 +83,11 @@ function getDateTime() {
   const date = document.getElementById('start-date').value;
   const time = document.getElementById('start-time').value || '00:00';
   if (!date) return null;
-  return new Date(`${date}T${time}`);
+  const [y, m, d]   = date.split('-').map(Number);
+  const [h, min]    = time.split(':').map(Number);
+  // Numeric constructor гарантирует локальное время на всех браузерах.
+  // new Date('YYYY-MM-DDTHH:MM') на iOS Safari может трактоваться как UTC — баг.
+  return new Date(y, m - 1, d, h, min, 0, 0);
 }
 
 // ── Page tabs ─────────────────────────────────────────────────────
