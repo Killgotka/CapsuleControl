@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Reflection;
 using System.Windows.Forms;
 using QRCoder;
 
@@ -22,6 +23,7 @@ public class MainForm : Form
 
     private Bitmap? _qrBitmap;
     private string _qrString = "";
+    private Image? _logo;
 
     private static readonly Color BG = Color.FromArgb(18, 18, 18);
     private static readonly Color CARD = Color.FromArgb(30, 30, 30);
@@ -34,6 +36,15 @@ public class MainForm : Form
     public MainForm()
     {
         BuildUI();
+        LoadLogo();
+    }
+
+    private void LoadLogo()
+    {
+        string logoPath = Path.Combine(
+            Path.GetDirectoryName(Application.ExecutablePath)!, "max_logo.png");
+        if (File.Exists(logoPath))
+            _logo = Image.FromFile(logoPath);
     }
 
     private void BuildUI()
@@ -208,12 +219,15 @@ public class MainForm : Form
         _qrString = QREncoder.Encode(capsuleId, isExtension, startTime);
 
         using var gen = new QRCodeGenerator();
-        using var data = gen.CreateQrCode(_qrString, QRCodeGenerator.ECCLevel.M);
-        using var code = new QRCode(data);
-        _qrBitmap?.Dispose();
-        _qrBitmap = code.GetGraphic(10, Color.Black, Color.White, true);
-        picQR.Image = _qrBitmap;
+        // ECCLevel.H — 30% коррекция ошибок, нужна для лого в центре
+        using var data = gen.CreateQrCode(_qrString, QRCodeGenerator.ECCLevel.H);
 
+        _qrBitmap?.Dispose();
+        _qrBitmap = _logo != null
+            ? StyledQRRenderer.Render(data, _logo)
+            : StyledQRRenderer.Render(data, null!);
+
+        picQR.Image = _qrBitmap;
         lblCode.ForeColor = TEXT;
         lblCode.Text = _qrString;
         btnSave.Enabled = true;
@@ -235,6 +249,7 @@ public class MainForm : Form
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         _qrBitmap?.Dispose();
+        _logo?.Dispose();
         base.OnFormClosed(e);
     }
 

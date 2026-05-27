@@ -10,4 +10,9 @@
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="max_logo.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>
