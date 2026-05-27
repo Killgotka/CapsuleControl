@@ -256,9 +256,9 @@ document.getElementById('copy-code').addEventListener('click', () => {
     .catch(() => showToast('Не удалось скопировать'));
 });
 
-// ── Camera scanner ────────────────────────────────────────────────
-let scanStream = null;
-let scanRafId = null;
+// ── Camera scanner (html5-qrcode / ZXing) ────────────────────────
+let scanner = null;
+let scannerRunning = false;
 
 function showDecodeResult(qrText) {
   const resultEl = document.getElementById('decode-result');
@@ -283,9 +283,11 @@ function showDecodeResult(qrText) {
   }
 }
 
-function stopCamera() {
-  if (scanRafId) { cancelAnimationFrame(scanRafId); scanRafId = null; }
-  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+async function stopCamera() {
+  if (scanner && scannerRunning) {
+    try { await scanner.stop(); } catch {}
+    scannerRunning = false;
+  }
   document.getElementById('scan-active').style.display = 'none';
   document.getElementById('scan-idle').style.display   = 'block';
 }
@@ -293,53 +295,40 @@ function stopCamera() {
 async function startCamera() {
   document.getElementById('decode-result').style.display = 'none';
   document.getElementById('decode-error').style.display  = 'none';
+  document.getElementById('scan-idle').style.display     = 'none';
+  document.getElementById('scan-manual').style.display   = 'none';
+  document.getElementById('scan-active').style.display   = 'block';
+
+  if (!scanner) {
+    scanner = new Html5Qrcode('qr-reader', { verbose: false });
+  }
 
   try {
-    scanStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } },
-      audio: false,
-    });
+    await scanner.start(
+      { facingMode: 'environment' },
+      {
+        fps: 15,
+        // Зона сканирования = центральные 70% viewfinder
+        qrbox: (w, h) => {
+          const side = Math.floor(Math.min(w, h) * 0.7);
+          return { width: side, height: side };
+        },
+        aspectRatio: 1,
+      },
+      (decodedText) => {
+        stopCamera();
+        if (navigator.vibrate) navigator.vibrate(60);
+        showDecodeResult(decodedText);
+      },
+      () => {} // per-frame error — игнорируем, это норма пока QR не найден
+    );
+    scannerRunning = true;
   } catch (err) {
-    // Permission denied or no camera — fall back to manual
+    scannerRunning = false;
+    document.getElementById('scan-active').style.display = 'none';
     showManual();
     showToast('Камера недоступна — введите вручную');
-    return;
   }
-
-  const video  = document.getElementById('scan-video');
-  const canvas = document.getElementById('scan-canvas');
-  video.srcObject = scanStream;
-  await video.play();
-
-  document.getElementById('scan-idle').style.display   = 'none';
-  document.getElementById('scan-manual').style.display = 'none';
-  document.getElementById('scan-active').style.display = 'block';
-
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-  function tick() {
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      canvas.width  = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: 'dontInvert',
-      });
-
-      if (code) {
-        stopCamera();
-        // Haptic feedback on mobile
-        if (navigator.vibrate) navigator.vibrate(60);
-        showDecodeResult(code.data);
-        return;
-      }
-    }
-    scanRafId = requestAnimationFrame(tick);
-  }
-
-  scanRafId = requestAnimationFrame(tick);
 }
 
 function showManual() {
@@ -363,7 +352,7 @@ document.getElementById('scan-again-btn').addEventListener('click', () => {
   startCamera();
 });
 
-// Stop camera when switching away from decode tab
+// Останавливаем камеру при переходе на другую вкладку
 document.querySelectorAll('.page-tab').forEach(btn => {
   btn.addEventListener('click', () => {
     if (btn.dataset.page !== 'decode') stopCamera();

@@ -519,11 +519,37 @@ textarea { resize: vertical; }
   margin: 0 auto 14px;
 }
 
-#scan-video {
+/* html5-qrcode рендерит видео внутрь #qr-reader */
+#qr-reader {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Скрыть весь дефолтный UI библиотеки — оставить только видео */
+#qr-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
   display: block;
+}
+
+#qr-reader img,
+#qr-reader__scan_region img,
+#qr-reader__dashboard,
+#qr-reader__status_span,
+#qr-reader__header_message,
+#qr-reader br {
+  display: none !important;
+}
+
+#qr-reader__scan_region {
+  position: absolute !important;
+  inset: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
 }
 
 .viewfinder-overlay {
