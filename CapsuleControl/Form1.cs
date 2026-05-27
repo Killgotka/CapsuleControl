@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Configuration;
 using System.Drawing;
 using System.Windows.Forms;
 using CapsuleControl.Properties;
@@ -15,8 +16,6 @@ public class Form1 : Form
 	private readonly CapsuleService _service;
 
 	private readonly GlobalKeyboardHook _globalHook;
-
-	private const string RELAY_IP = "192.168.1.200";
 
 	private bool[] Digi = new bool[8];
 
@@ -37,8 +36,9 @@ public class Form1 : Form
 		InitializeComponent();
 		BackColor = Color.FromArgb(10, 10, 10);
 		Text = "Переговорная Капсула";
+		string relayIp = ConfigurationManager.AppSettings["RelayIP"] ?? "192.168.1.200";
 		_validator = new QRValidator();
-		_relay = new RelayController("192.168.1.200");
+		_relay = new RelayController(relayIp);
 		_service = new CapsuleService(_validator, _relay, this);
 		_globalHook = new GlobalKeyboardHook(this);
 	}

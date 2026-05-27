@@ -46,7 +46,18 @@ public class RelayController : IDisposable
 
 	public bool[] ReadDigitalVal()
 	{
-		return _master.ReadInputs(1, 0, 8);
+		if (!_isConnected || _master == null)
+		{
+			return new bool[8];
+		}
+		try
+		{
+			return _master.ReadInputs(1, 0, 8);
+		}
+		catch (Exception)
+		{
+			return new bool[8];
+		}
 	}
 
 	public void StartSession()
