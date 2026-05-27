@@ -308,26 +308,26 @@ async function startCamera() {
       { facingMode: 'environment' },
       {
         fps: 15,
-        // Зона сканирования = центральные 70% viewfinder
-        qrbox: (w, h) => {
-          const side = Math.floor(Math.min(w, h) * 0.7);
-          return { width: side, height: side };
-        },
-        aspectRatio: 1,
+        // Фиксированный qrbox — функция ломается на iOS Safari
+        qrbox: { width: 250, height: 250 },
+        // Использует нативный BarcodeDetector на iOS 17+ и Chrome Android
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+        // НЕ передаём aspectRatio — ломает видеопоток на iOS
       },
       (decodedText) => {
         stopCamera();
         if (navigator.vibrate) navigator.vibrate(60);
         showDecodeResult(decodedText);
       },
-      () => {} // per-frame error — игнорируем, это норма пока QR не найден
+      () => {} // per-frame miss — норма пока QR не в кадре
     );
     scannerRunning = true;
   } catch (err) {
     scannerRunning = false;
     document.getElementById('scan-active').style.display = 'none';
-    showManual();
-    showToast('Камера недоступна — введите вручную');
+    // iOS может не поддерживать getUserMedia в Safari — показываем кнопку фото
+    showIdle();
+    showToast('Попробуйте кнопку «Сфотографировать»');
   }
 }
 
@@ -342,6 +342,31 @@ function showIdle() {
   document.getElementById('scan-idle').style.display   = 'block';
   document.getElementById('scan-manual').style.display = 'none';
 }
+
+// «Сфотографировать» — нативная камера iOS, потом декодируем файл
+document.getElementById('photo-btn').addEventListener('click', () => {
+  document.getElementById('photo-input').click();
+});
+
+document.getElementById('photo-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = ''; // сброс чтобы можно было снова выбрать
+
+  document.getElementById('decode-result').style.display = 'none';
+  document.getElementById('decode-error').style.display  = 'none';
+
+  if (!scanner) scanner = new Html5Qrcode('qr-reader', { verbose: false });
+
+  try {
+    const text = await scanner.scanFile(file, false);
+    if (navigator.vibrate) navigator.vibrate(60);
+    showDecodeResult(text);
+  } catch {
+    document.getElementById('decode-error-text').textContent = 'QR-код не найден на фото';
+    document.getElementById('decode-error').style.display = 'flex';
+  }
+});
 
 document.getElementById('start-scan-btn').addEventListener('click', startCamera);
 document.getElementById('stop-scan-btn').addEventListener('click', stopCamera);
