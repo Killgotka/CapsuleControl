@@ -32,6 +32,7 @@ public class Form1 : Form
 
         _service.RelayConnectionChanged += OnRelayConnectionChanged;
 
+        FontManager.Load();
         InitializeComponent();
         ApplyRelayStatus(_relay.IsConnected);
 
@@ -109,7 +110,7 @@ public class Form1 : Form
         lblTimerL = new Label
         {
             Text      = "00",
-            Font      = new Font("Max Sans Medium", 185f, FontStyle.Bold),
+            Font      = FontManager.Get("Max Sans Medium", 185f, FontStyle.Bold),
             ForeColor = Color.White,
             BackColor = Color.Transparent,
             Location  = new Point(51, 231),
@@ -121,7 +122,7 @@ public class Form1 : Form
         lblTimerR = new Label
         {
             Text      = "00",
-            Font      = new Font("Max Sans Medium", 185f, FontStyle.Bold),
+            Font      = FontManager.Get("Max Sans Medium", 185f, FontStyle.Bold),
             ForeColor = Color.White,
             BackColor = Color.Transparent,
             Location  = new Point(619, 230),

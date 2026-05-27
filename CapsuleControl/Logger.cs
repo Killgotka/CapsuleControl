@@ -6,8 +6,7 @@ namespace CapsuleControl;
 
 public static class Logger
 {
-    private static readonly string LogDir = Path.Combine(
-        AppDomain.CurrentDomain.BaseDirectory, "logs");
+    private static readonly string LogDir = AppPaths.Logs;
 
     private static string LogFile =>
         Path.Combine(LogDir, $"capsule_{DateTime.Now:yyyy-MM-dd}.log");

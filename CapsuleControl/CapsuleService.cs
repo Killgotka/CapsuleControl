@@ -23,8 +23,7 @@ public class CapsuleService : IDisposable
     // QR-коды использованные сегодня — персистентны (выживают перезапуск)
     private readonly HashSet<string> _usedQRs = new();
     private static readonly string UsedQRFile =
-        Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
-            "data", $"used_qr_{DateTime.Now:yyyy-MM-dd}.txt");
+        Path.Combine(AppPaths.Data, $"used_qr_{DateTime.Now:yyyy-MM-dd}.txt");
 
     public event Action<bool>? RelayConnectionChanged;
 
