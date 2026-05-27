@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 
 namespace CapsuleControl;
 
@@ -28,7 +29,7 @@ public static class Logger
         try
         {
             string line = $"[{DateTime.Now:HH:mm:ss}] [{level}] {message}";
-            File.AppendAllText(LogFile, line + Environment.NewLine);
+            File.AppendAllText(LogFile, line + Environment.NewLine, Encoding.UTF8);
         }
         catch { }
     }
