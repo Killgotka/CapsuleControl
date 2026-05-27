@@ -172,57 +172,107 @@
 
     <!-- ── DECODE PAGE ────────────────────────────────────── -->
     <div class="page" id="page-decode">
-      <div class="card">
-        <div class="field">
-          <label>Закодированная строка QR</label>
-          <textarea id="decode-input" rows="4" placeholder="Вставьте сюда строку из QR-кода..."></textarea>
+
+      <!-- Camera scanner card -->
+      <div class="card scanner-card" id="scanner-card">
+
+        <!-- Idle state -->
+        <div id="scan-idle">
+          <div class="scan-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M23 7V1h-6M1 7V1h6M23 17v6h-6M1 17v6h6"/>
+              <rect x="7" y="7" width="4" height="4" rx="0.5" fill="currentColor" stroke="none"/>
+              <rect x="13" y="7" width="4" height="4" rx="0.5" fill="currentColor" stroke="none"/>
+              <rect x="7" y="13" width="4" height="4" rx="0.5" fill="currentColor" stroke="none"/>
+              <rect x="13" y="13" width="4" height="4" rx="0.5" fill="currentColor" stroke="none"/>
+            </svg>
+          </div>
+          <p class="scan-hint">Наведите камеру на QR-код капсулы</p>
+          <button class="generate-btn" id="start-scan-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Открыть камеру
+          </button>
+          <button class="manual-toggle-btn" id="manual-toggle-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Ввести вручную
+          </button>
         </div>
-        <button class="generate-btn" id="decode-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-          Декодировать
+
+        <!-- Scanning state -->
+        <div id="scan-active" style="display:none">
+          <div class="viewfinder-wrap">
+            <video id="scan-video" playsinline muted autoplay></video>
+            <canvas id="scan-canvas" style="display:none"></canvas>
+            <div class="viewfinder-overlay">
+              <div class="viewfinder-frame">
+                <span class="vf-corner vf-tl"></span>
+                <span class="vf-corner vf-tr"></span>
+                <span class="vf-corner vf-bl"></span>
+                <span class="vf-corner vf-br"></span>
+                <div class="vf-laser"></div>
+              </div>
+            </div>
+          </div>
+          <button class="stop-scan-btn" id="stop-scan-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Остановить
+          </button>
+        </div>
+
+        <!-- Manual input (hidden by default) -->
+        <div id="scan-manual" style="display:none">
+          <div class="field" style="margin-bottom:12px">
+            <label>Строка из QR-кода</label>
+            <textarea id="decode-input" rows="3" placeholder="Вставьте закодированную строку..."></textarea>
+          </div>
+          <button class="generate-btn" id="decode-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            Декодировать
+          </button>
+          <button class="manual-toggle-btn" style="margin-top:10px" id="camera-toggle-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Вернуться к камере
+          </button>
+        </div>
+      </div>
+
+      <!-- Result -->
+      <div class="decode-result" id="decode-result" style="display:none">
+        <div class="decode-result-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Успешно декодировано
+        </div>
+        <div class="session-info">
+          <div class="session-row">
+            <span class="session-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></span>
+            <span class="session-label">Капсула</span>
+            <span class="session-value" id="dec-capsule">—</span>
+          </div>
+          <div class="session-row">
+            <span class="session-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <span class="session-label">Начало</span>
+            <span class="session-value" id="dec-time">—</span>
+          </div>
+          <div class="session-row">
+            <span class="session-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <span class="session-label">Конец</span>
+            <span class="session-value" id="dec-end">—</span>
+          </div>
+          <div class="session-row">
+            <span class="session-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/></svg></span>
+            <span class="session-label">Тип</span>
+            <span class="session-value" id="dec-type">—</span>
+          </div>
+        </div>
+        <button class="scan-again-btn" id="scan-again-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+          Сканировать ещё
         </button>
+      </div>
 
-        <div class="decode-result" id="decode-result" style="display:none">
-          <div class="decode-result-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-            Успешно декодировано
-          </div>
-          <div class="session-info">
-            <div class="session-row">
-              <span class="session-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-              </span>
-              <span class="session-label">Капсула</span>
-              <span class="session-value" id="dec-capsule">—</span>
-            </div>
-            <div class="session-row">
-              <span class="session-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              </span>
-              <span class="session-label">Начало</span>
-              <span class="session-value" id="dec-time">—</span>
-            </div>
-            <div class="session-row">
-              <span class="session-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              </span>
-              <span class="session-label">Конец</span>
-              <span class="session-value" id="dec-end">—</span>
-            </div>
-            <div class="session-row">
-              <span class="session-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/></svg>
-              </span>
-              <span class="session-label">Тип</span>
-              <span class="session-value" id="dec-type">—</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="decode-error" id="decode-error" style="display:none">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Неверная строка или подпись
-        </div>
+      <div class="decode-error" id="decode-error" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="decode-error-text">Неверная строка или подпись</span>
       </div>
     </div>
 
@@ -231,6 +281,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

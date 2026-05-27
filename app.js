@@ -256,35 +256,126 @@ document.getElementById('copy-code').addEventListener('click', () => {
     .catch(() => showToast('Не удалось скопировать'));
 });
 
-// ── Decode page ───────────────────────────────────────────────────
-document.getElementById('decode-btn').addEventListener('click', () => {
-  if (document.activeElement) document.activeElement.blur();
+// ── Camera scanner ────────────────────────────────────────────────
+let scanStream = null;
+let scanRafId = null;
 
-  const input = document.getElementById('decode-input').value.trim();
+function showDecodeResult(qrText) {
   const resultEl = document.getElementById('decode-result');
-  const errorEl = document.getElementById('decode-error');
-
+  const errorEl  = document.getElementById('decode-error');
   resultEl.style.display = 'none';
-  errorEl.style.display = 'none';
-
-  if (!input) {
-    showToast('Вставьте строку QR-кода');
-    return;
-  }
+  errorEl.style.display  = 'none';
 
   try {
-    const { capsuleId, isExtension, startTime } = decode(input);
+    const { capsuleId, isExtension, startTime } = decode(qrText);
     const endTime = addMinutes(startTime, SESSION_MINUTES);
 
     document.getElementById('dec-capsule').textContent = `№ ${capsuleId}`;
-    document.getElementById('dec-time').textContent = formatDateTime(startTime);
-    document.getElementById('dec-end').textContent = formatDateTime(endTime);
-    document.getElementById('dec-type').textContent = isExtension ? 'Продление' : 'Основная';
+    document.getElementById('dec-time').textContent    = formatDateTime(startTime);
+    document.getElementById('dec-end').textContent     = formatDateTime(endTime);
+    document.getElementById('dec-type').textContent    = isExtension ? 'Продление' : 'Основная';
 
     resultEl.style.display = 'block';
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch {
+    document.getElementById('decode-error-text').textContent = 'Неверная строка или подпись';
     errorEl.style.display = 'flex';
   }
+}
+
+function stopCamera() {
+  if (scanRafId) { cancelAnimationFrame(scanRafId); scanRafId = null; }
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  document.getElementById('scan-active').style.display = 'none';
+  document.getElementById('scan-idle').style.display   = 'block';
+}
+
+async function startCamera() {
+  document.getElementById('decode-result').style.display = 'none';
+  document.getElementById('decode-error').style.display  = 'none';
+
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } },
+      audio: false,
+    });
+  } catch (err) {
+    // Permission denied or no camera — fall back to manual
+    showManual();
+    showToast('Камера недоступна — введите вручную');
+    return;
+  }
+
+  const video  = document.getElementById('scan-video');
+  const canvas = document.getElementById('scan-canvas');
+  video.srcObject = scanStream;
+  await video.play();
+
+  document.getElementById('scan-idle').style.display   = 'none';
+  document.getElementById('scan-manual').style.display = 'none';
+  document.getElementById('scan-active').style.display = 'block';
+
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  function tick() {
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert',
+      });
+
+      if (code) {
+        stopCamera();
+        // Haptic feedback on mobile
+        if (navigator.vibrate) navigator.vibrate(60);
+        showDecodeResult(code.data);
+        return;
+      }
+    }
+    scanRafId = requestAnimationFrame(tick);
+  }
+
+  scanRafId = requestAnimationFrame(tick);
+}
+
+function showManual() {
+  stopCamera();
+  document.getElementById('scan-idle').style.display   = 'none';
+  document.getElementById('scan-manual').style.display = 'block';
+}
+
+function showIdle() {
+  stopCamera();
+  document.getElementById('scan-idle').style.display   = 'block';
+  document.getElementById('scan-manual').style.display = 'none';
+}
+
+document.getElementById('start-scan-btn').addEventListener('click', startCamera);
+document.getElementById('stop-scan-btn').addEventListener('click', stopCamera);
+document.getElementById('manual-toggle-btn').addEventListener('click', showManual);
+document.getElementById('camera-toggle-btn').addEventListener('click', showIdle);
+document.getElementById('scan-again-btn').addEventListener('click', () => {
+  document.getElementById('decode-result').style.display = 'none';
+  startCamera();
+});
+
+// Stop camera when switching away from decode tab
+document.querySelectorAll('.page-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.page !== 'decode') stopCamera();
+  });
+});
+
+// ── Manual decode ─────────────────────────────────────────────────
+document.getElementById('decode-btn').addEventListener('click', () => {
+  if (document.activeElement) document.activeElement.blur();
+  const input = document.getElementById('decode-input').value.trim();
+  if (!input) { showToast('Вставьте строку QR-кода'); return; }
+  showDecodeResult(input);
 });
 
 // ── Toast ─────────────────────────────────────────────────────────
