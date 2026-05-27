@@ -631,6 +631,14 @@ textarea { resize: vertical; }
 .stop-scan-btn:active { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
 
 /* Scan again */
+.dec-debug {
+  font-size: 11px;
+  font-family: 'Courier New', monospace;
+  color: var(--text-muted);
+  padding: 6px 14px 2px;
+  word-break: break-all;
+}
+
 .scan-again-btn {
   display: flex;
   align-items: center;

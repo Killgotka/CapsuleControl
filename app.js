@@ -46,11 +46,12 @@ function decode(qrText) {
 
   const capsuleId = parseInt(parts[0]);
   const isExtension = parts[1] === '1';
-  const startTime = new Date(parseInt(parts[2]) * 1000);
+  const unixTs = parseInt(parts[2]);
+  const startTime = new Date(unixTs * 1000);
 
   if (isNaN(capsuleId) || isNaN(startTime.getTime())) throw new Error('Неверные данные');
 
-  return { capsuleId, isExtension, startTime };
+  return { capsuleId, isExtension, startTime, unixTs };
 }
 
 // ── Date/time helpers ─────────────────────────────────────────────
@@ -66,7 +67,10 @@ function toTimeInputValue(d) {
 }
 
 function formatDateTime(d) {
-  return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  // getHours/getMinutes/getDate — гарантированно локальное время.
+  // toLocaleString('ru-RU') на iOS Safari иногда применяет UTC вместо local.
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 function addMinutes(d, mins) {
@@ -316,13 +320,21 @@ function showDecodeResult(qrText) {
   errorEl.style.display  = 'none';
 
   try {
-    const { capsuleId, isExtension, startTime } = decode(qrText);
+    const { capsuleId, isExtension, startTime, unixTs } = decode(qrText);
     const endTime = addMinutes(startTime, SESSION_MINUTES);
 
     document.getElementById('dec-capsule').textContent = `№ ${capsuleId}`;
     document.getElementById('dec-time').textContent    = formatDateTime(startTime);
     document.getElementById('dec-end').textContent     = formatDateTime(endTime);
     document.getElementById('dec-type').textContent    = isExtension ? 'Продление' : 'Основная';
+
+    // Отладка — помогает понять timezone-проблему
+    const tzOffset = -new Date().getTimezoneOffset();
+    const tzSign   = tzOffset >= 0 ? '+' : '-';
+    const tzHours  = String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, '0');
+    const tzMins   = String(Math.abs(tzOffset) % 60).padStart(2, '0');
+    document.getElementById('dec-debug').textContent =
+      `UTC ${tzSign}${tzHours}:${tzMins} · ts=${unixTs} · UTC: ${new Date(unixTs*1000).toISOString().slice(11,16)}`;
 
     resultEl.style.display = 'block';
     resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
