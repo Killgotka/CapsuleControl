@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Капсулы — SPIEF 2026</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+          <rect x="2" y="2" width="12" height="12" rx="2" fill="currentColor"/>
+          <rect x="18" y="2" width="12" height="12" rx="2" fill="currentColor"/>
+          <rect x="2" y="18" width="12" height="12" rx="2" fill="currentColor"/>
+          <rect x="5" y="5" width="6" height="6" rx="1" fill="white"/>
+          <rect x="21" y="5" width="6" height="6" rx="1" fill="white"/>
+          <rect x="5" y="21" width="6" height="6" rx="1" fill="white"/>
+          <rect x="18" y="18" width="5" height="5" rx="1" fill="currentColor"/>
+          <rect x="25" y="18" width="5" height="5" rx="1" fill="currentColor"/>
+          <rect x="18" y="25" width="5" height="5" rx="1" fill="currentColor"/>
+          <rect x="25" y="25" width="5" height="5" rx="1" fill="currentColor"/>
+        </svg>
+        <span>QR Капсулы</span>
+      </div>
+      <span class="badge">SPIEF 2026</span>
+    </header>
+
+    <div class="page-tabs">
+      <button class="page-tab active" data-page="generate">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h.01M9 15h.01M15 9h.01M15 15h.01"/></svg>
+        Создать QR
+      </button>
+      <button class="page-tab" data-page="decode">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        Декодировать
+      </button>
+    </div>
+
+    <!-- ── GENERATE PAGE ─────────────────────────────────── -->
+    <div class="page active" id="page-generate">
+      <div class="layout">
+
+        <!-- Form -->
+        <div class="card form-card">
+
+          <!-- Capsule number -->
+          <div class="field">
+            <label>Номер капсулы</label>
+            <div class="stepper">
+              <button class="step-btn" id="step-down" aria-label="Уменьшить">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <input id="capsule-id" type="number" min="1" max="999" value="1" inputmode="numeric" />
+              <button class="step-btn" id="step-up" aria-label="Увеличить">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Extension toggle -->
+          <div class="field field-inline">
+            <div>
+              <div class="field-title">Продление сессии</div>
+              <div class="field-hint">Отметьте, если это дополнительное время</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="is-extension" />
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+
+          <!-- Date & Time -->
+          <div class="field">
+            <label>Дата и время начала</label>
+            <div class="datetime-row">
+              <input id="start-date" type="date" />
+              <input id="start-time" type="time" />
+            </div>
+          </div>
+
+          <!-- Quick time buttons -->
+          <div class="quick-btns">
+            <button class="quick-btn" id="btn-now">Сейчас</button>
+            <button class="quick-btn" id="btn-30">+30 мин</button>
+            <button class="quick-btn" id="btn-60">+1 час</button>
+          </div>
+
+          <button class="generate-btn" id="generate-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h.01M9 15h.01M15 9h.01M15 15h.01"/></svg>
+            Сгенерировать QR
+          </button>
+        </div>
+
+        <!-- Preview -->
+        <div class="card preview-card" id="preview-card">
+          <div class="preview-header">
+            <span>QR-код</span>
+            <div class="preview-actions" id="preview-actions" style="display:none">
+              <button class="icon-btn" id="download-png" title="Скачать PNG">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                PNG
+              </button>
+              <button class="icon-btn" id="copy-code" title="Копировать код">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Код
+              </button>
+            </div>
+          </div>
+
+          <div class="qr-area" id="qr-area">
+            <div class="qr-placeholder" id="qr-placeholder">
+              <svg width="56" height="56" viewBox="0 0 64 64" fill="none" opacity="0.2">
+                <rect x="4" y="4" width="24" height="24" rx="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                <rect x="36" y="4" width="24" height="24" rx="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                <rect x="4" y="36" width="24" height="24" rx="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                <rect x="10" y="10" width="12" height="12" rx="1" fill="currentColor"/>
+                <rect x="42" y="10" width="12" height="12" rx="1" fill="currentColor"/>
+                <rect x="10" y="42" width="12" height="12" rx="1" fill="currentColor"/>
+                <rect x="36" y="36" width="10" height="10" rx="1" fill="currentColor"/>
+                <rect x="50" y="36" width="10" height="10" rx="1" fill="currentColor"/>
+                <rect x="36" y="50" width="10" height="10" rx="1" fill="currentColor"/>
+                <rect x="50" y="50" width="10" height="10" rx="1" fill="currentColor"/>
+              </svg>
+              <p>Заполните форму и нажмите<br/><strong>«Сгенерировать QR»</strong></p>
+            </div>
+            <canvas id="qr-canvas" style="display:none"></canvas>
+          </div>
+
+          <!-- Session info card -->
+          <div class="session-info" id="session-info" style="display:none">
+            <div class="session-row">
+              <span class="session-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+              </span>
+              <span class="session-label">Капсула</span>
+              <span class="session-value" id="info-capsule">—</span>
+            </div>
+            <div class="session-row">
+              <span class="session-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+              <span class="session-label">Начало</span>
+              <span class="session-value" id="info-time">—</span>
+            </div>
+            <div class="session-row">
+              <span class="session-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+              <span class="session-label">Конец</span>
+              <span class="session-value" id="info-end">—</span>
+            </div>
+            <div class="session-row" id="info-ext-row" style="display:none">
+              <span class="session-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/></svg>
+              </span>
+              <span class="session-label">Тип</span>
+              <span class="session-value badge-ext">Продление</span>
+            </div>
+          </div>
+
+          <!-- Encoded string -->
+          <div class="encoded-wrap" id="encoded-wrap" style="display:none">
+            <div class="encoded-label">Закодированная строка</div>
+            <div class="encoded-value" id="encoded-str"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── DECODE PAGE ────────────────────────────────────── -->
+    <div class="page" id="page-decode">
+      <div class="card">
+        <div class="field">
+          <label>Закодированная строка QR</label>
+          <textarea id="decode-input" rows="4" placeholder="Вставьте сюда строку из QR-кода..."></textarea>
+        </div>
+        <button class="generate-btn" id="decode-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          Декодировать
+        </button>
+
+        <div class="decode-result" id="decode-result" style="display:none">
+          <div class="decode-result-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Успешно декодировано
+          </div>
+          <div class="session-info">
+            <div class="session-row">
+              <span class="session-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+              </span>
+              <span class="session-label">Капсула</span>
+              <span class="session-value" id="dec-capsule">—</span>
+            </div>
+            <div class="session-row">
+              <span class="session-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+              <span class="session-label">Начало</span>
+              <span class="session-value" id="dec-time">—</span>
+            </div>
+            <div class="session-row">
+              <span class="session-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+              <span class="session-label">Конец</span>
+              <span class="session-value" id="dec-end">—</span>
+            </div>
+            <div class="session-row">
+              <span class="session-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/></svg>
+              </span>
+              <span class="session-label">Тип</span>
+              <span class="session-value" id="dec-type">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="decode-error" id="decode-error" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Неверная строка или подпись
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /container -->
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
