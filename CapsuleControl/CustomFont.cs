@@ -5,37 +5,40 @@ using System.IO;
 
 namespace CapsuleControl;
 
-public static class FontManager
+public class CustomFont : IDisposable
 {
-    private static readonly PrivateFontCollection _pfc = new();
-    private static bool _loaded;
+	private PrivateFontCollection? _privateFontCollection;
 
-    public static void Load()
-    {
-        if (_loaded) return;
-        string fontsDir = AppPaths.Fonts;
-        if (!Directory.Exists(fontsDir))
-        {
-            Logger.Warn($"Fonts directory not found: {fontsDir}");
-            return;
-        }
-        foreach (string file in Directory.GetFiles(fontsDir, "*.ttf"))
-        {
-            _pfc.AddFontFile(file);
-            Logger.Info($"Font loaded: {Path.GetFileName(file)}");
-        }
-        _loaded = true;
-    }
+	public FontFamily? FontFamily { get; private set; }
 
-    public static Font Get(string familyName, float size, FontStyle style = FontStyle.Regular)
-    {
-        foreach (FontFamily family in _pfc.Families)
-        {
-            if (family.Name.Equals(familyName, StringComparison.OrdinalIgnoreCase))
-                return new Font(family, size, style);
-        }
-        // шрифт не найден в коллекции — fallback на системный
-        Logger.Warn($"Font '{familyName}' not found in Fonts/, using Segoe UI");
-        return new Font("Segoe UI", size, style);
-    }
+	public CustomFont(string fontFilePath)
+	{
+		if (!File.Exists(fontFilePath))
+		{
+			throw new FileNotFoundException("Шрифт не найден: " + fontFilePath);
+		}
+		_privateFontCollection = new PrivateFontCollection();
+		_privateFontCollection.AddFontFile(fontFilePath);
+		if (_privateFontCollection.Families.Length != 0)
+		{
+			FontFamily = _privateFontCollection.Families[0];
+			Console.WriteLine("✅ Шрифт успешно загружен: " + FontFamily.Name);
+			return;
+		}
+		throw new Exception("Не удалось загрузить семейство шрифтов");
+	}
+
+	public Font GetFont(float size, FontStyle style = FontStyle.Regular)
+	{
+		if (FontFamily == null)
+		{
+			return new Font("Segoe UI", size, style);
+		}
+		return new Font(FontFamily, size, style);
+	}
+
+	public void Dispose()
+	{
+		_privateFontCollection?.Dispose();
+	}
 }

@@ -7,7 +7,7 @@ namespace CapsuleControl.Properties;
 internal static class Resources
 {
     private static string ResPath(string name) =>
-        Path.Combine(CapsuleControl.AppPaths.Resources, name + ".png");
+        Path.Combine(AppPaths.Resources, name + ".png");
 
     internal static Bitmap bg   => new Bitmap(ResPath("bg"));
     internal static Bitmap bg2  => new Bitmap(ResPath("bg2"));
