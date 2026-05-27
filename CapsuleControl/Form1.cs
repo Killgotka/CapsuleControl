@@ -10,16 +10,14 @@ public enum StatusKind { Ready, Active, Error }
 
 public class Form1 : Form
 {
-    private readonly QRValidator    _validator;
-    private readonly RelayController _relay;
-    private readonly CapsuleService  _service;
-    private readonly GlobalKeyboardHook _globalHook;
+    private readonly QRValidator         _validator;
+    private readonly RelayController     _relay;
+    private readonly CapsuleService      _service;
+    private readonly GlobalKeyboardHook  _globalHook;
 
-    private Label lblTimerL  = null!;
-    private Label lblTimerR  = null!;
-    private Label lblStatus  = null!;
-    private Label lblDot     = null!;
-    private Label lblRelayStatus = null!;
+    private Label lblTimerL = null!;
+    private Label lblTimerR = null!;
+    private Label lblStatus = null!;
 
     public Form1()
     {
@@ -39,7 +37,7 @@ public class Form1 : Form
         Logger.Info("Form1 initialized");
     }
 
-    // ── public API для CapsuleService ─────────────────────────────────
+    // ── public API для CapsuleService ────────────────────────────────────
 
     public void UpdateTimer(string timerText)
     {
@@ -52,18 +50,18 @@ public class Form1 : Form
     {
         if (InvokeRequired) { Invoke(() => SetStatus(message, kind)); return; }
         lblStatus.Text      = message;
-        lblStatus.Visible   = true;
+        lblStatus.Visible   = !string.IsNullOrEmpty(message);
         lblStatus.ForeColor = kind switch
         {
             StatusKind.Active => Color.FromArgb(100, 220, 130),
             StatusKind.Error  => Color.FromArgb(255, 90, 90),
-            _                 => Color.FromArgb(180, 180, 180),
+            _                 => Color.FromArgb(200, 200, 200),
         };
     }
 
     public void ProcessQRCode(string qrText) => _service.ProcessQR(qrText);
 
-    // ── relay connection indicator ────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
 
     private void OnRelayConnectionChanged(bool connected)
     {
@@ -73,17 +71,15 @@ public class Form1 : Form
 
     private void ApplyRelayStatus(bool connected)
     {
-        lblDot.ForeColor        = connected ? Color.FromArgb(80, 200, 100) : Color.FromArgb(220, 60, 60);
-        lblRelayStatus.Text     = connected ? "Реле подключено" : "Реле недоступно";
-        lblRelayStatus.ForeColor = connected ? Color.FromArgb(80, 200, 100) : Color.FromArgb(220, 60, 60);
+        if (_service.SessionActive) return;
 
-        if (!connected && !_service.SessionActive)
+        if (!connected)
             SetStatus("Реле недоступно", StatusKind.Error);
-        else if (connected && !_service.SessionActive)
-            SetStatus("Готово к работе", StatusKind.Ready);
+        else
+            SetStatus("", StatusKind.Ready); // чистый экран когда всё ок
     }
 
-    // ── lifecycle ─────────────────────────────────────────────────────
+    // ── lifecycle ─────────────────────────────────────────────────────────
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
@@ -93,7 +89,7 @@ public class Form1 : Form
         base.OnFormClosing(e);
     }
 
-    // ── UI layout ─────────────────────────────────────────────────────
+    // ── UI ────────────────────────────────────────────────────────────────
 
     private void InitializeComponent()
     {
@@ -106,7 +102,6 @@ public class Form1 : Form
         StartPosition   = FormStartPosition.CenterScreen;
         Text            = "Переговорная Капсула";
 
-        // таймер — левая часть (минуты)
         lblTimerL = new Label
         {
             Text      = "00",
@@ -118,7 +113,6 @@ public class Form1 : Form
             TextAlign = ContentAlignment.MiddleRight,
         };
 
-        // таймер — правая часть (секунды)
         lblTimerR = new Label
         {
             Text      = "00",
@@ -130,12 +124,11 @@ public class Form1 : Form
             TextAlign = ContentAlignment.MiddleLeft,
         };
 
-        // статус сессии (центр снизу)
         lblStatus = new Label
         {
             Text      = "",
             Font      = new Font("Segoe UI", 24f),
-            ForeColor = Color.FromArgb(180, 180, 180),
+            ForeColor = Color.FromArgb(200, 200, 200),
             BackColor = Color.Transparent,
             Location  = new Point(229, 562),
             Size      = new Size(800, 80),
@@ -143,32 +136,9 @@ public class Form1 : Form
             Visible   = false,
         };
 
-        // цветная точка индикатора реле (левый нижний угол)
-        lblDot = new Label
-        {
-            Text      = "●",
-            Font      = new Font("Segoe UI", 14f),
-            BackColor = Color.Transparent,
-            Location  = new Point(20, 680),
-            Size      = new Size(24, 24),
-            TextAlign = ContentAlignment.MiddleCenter,
-        };
-
-        // текст рядом с точкой
-        lblRelayStatus = new Label
-        {
-            Text      = "",
-            Font      = new Font("Segoe UI", 10f),
-            BackColor = Color.Transparent,
-            Location  = new Point(46, 682),
-            Size      = new Size(200, 20),
-        };
-
         Controls.Add(lblTimerL);
         Controls.Add(lblTimerR);
         Controls.Add(lblStatus);
-        Controls.Add(lblDot);
-        Controls.Add(lblRelayStatus);
 
         ResumeLayout(false);
     }
