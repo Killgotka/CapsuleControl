@@ -4,7 +4,7 @@
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
     <OutputType>WinExe</OutputType>
     <UseWindowsForms>True</UseWindowsForms>
-    <TargetFramework>netcoreapp8.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
   </PropertyGroup>
   <PropertyGroup>
     <LangVersion>11.0</LangVersion>
@@ -13,7 +13,11 @@
   <PropertyGroup>
     <RootNamespace />
   </PropertyGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <!-- исключаем QRGenerator — отдельный проект в подпапке репо -->
+    <Compile Remove="QRGenerator\**" />
+    <None Remove="QRGenerator\**" />
+  </ItemGroup>
   <ItemGroup>
     <Reference Include="NModbus">
       <HintPath>..\net8.0-windows\NModbus.dll</HintPath>

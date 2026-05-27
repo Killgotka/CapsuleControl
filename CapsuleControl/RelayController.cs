@@ -6,73 +6,78 @@ namespace CapsuleControl;
 
 public class RelayController : IDisposable
 {
-	private TcpClient? _client;
+    private TcpClient?    _client;
+    private IModbusMaster? _master;
+    private readonly string _ip;
+    private readonly int    _port;
 
-	private IModbusMaster? _master;
+    public bool IsConnected { get; private set; }
 
-	private bool _isConnected;
+    public RelayController(string ipAddress, int port = 502)
+    {
+        _ip   = ipAddress;
+        _port = port;
+        Connect();
+    }
 
-	public RelayController(string ipAddress, int port = 502)
-	{
-		try
-		{
-			_client = new TcpClient();
-			_client.Connect(ipAddress, port);
-			ModbusFactory modbusFactory = new ModbusFactory();
-			_master = modbusFactory.CreateMaster(_client);
-			_isConnected = true;
-			EndSession();
-		}
-		catch (Exception)
-		{
-			_isConnected = false;
-		}
-	}
+    private void Connect()
+    {
+        try
+        {
+            _client?.Dispose();
+            _master?.Dispose();
 
-	public void SetRelay(int channel, bool state)
-	{
-		if (!_isConnected || _master == null)
-		{
-			return;
-		}
-		try
-		{
-			_master.WriteSingleCoil(1, (ushort)channel, state);
-		}
-		catch (Exception)
-		{
-		}
-	}
+            _client = new TcpClient();
+            _client.Connect(_ip, _port);
+            _master = new ModbusFactory().CreateMaster(_client);
+            IsConnected = true;
+            Logger.Info($"Relay connected: {_ip}:{_port}");
+            EndSession();
+        }
+        catch (Exception ex)
+        {
+            IsConnected = false;
+            Logger.Error($"Relay connection failed: {_ip}:{_port}", ex);
+        }
+    }
 
-	public bool[] ReadDigitalVal()
-	{
-		if (!_isConnected || _master == null)
-		{
-			return new bool[8];
-		}
-		try
-		{
-			return _master.ReadInputs(1, 0, 8);
-		}
-		catch (Exception)
-		{
-			return new bool[8];
-		}
-	}
+    public void SetRelay(int channel, bool state)
+    {
+        if (!IsConnected || _master == null) return;
+        try
+        {
+            _master.WriteSingleCoil(1, (ushort)channel, state);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("SetRelay failed", ex);
+            IsConnected = false;
+        }
+    }
 
-	public void StartSession()
-	{
-		SetRelay(0, state: true);
-	}
+    public bool[] ReadDigitalInputs()
+    {
+        if (!IsConnected || _master == null) return new bool[8];
+        try
+        {
+            return _master.ReadInputs(1, 0, 8);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("ReadDigitalInputs failed", ex);
+            IsConnected = false;
+            return new bool[8];
+        }
+    }
 
-	public void EndSession()
-	{
-		SetRelay(0, state: false);
-	}
+    public void TryReconnect() => Connect();
 
-	public void Dispose()
-	{
-		_master?.Dispose();
-		_client?.Dispose();
-	}
+    public void StartSession() => SetRelay(0, true);
+    public void EndSession()   => SetRelay(0, false);
+
+    public void Dispose()
+    {
+        _master?.Dispose();
+        _client?.Dispose();
+    }
 }
