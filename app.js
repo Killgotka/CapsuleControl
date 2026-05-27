@@ -256,10 +256,55 @@ document.getElementById('copy-code').addEventListener('click', () => {
     .catch(() => showToast('Не удалось скопировать'));
 });
 
-// ── Camera scanner (html5-qrcode / ZXing) ────────────────────────
-let scanner = null;
-let scannerRunning = false;
+// ── QR detection core ─────────────────────────────────────────────
+// Пробует BarcodeDetector (нативный, iOS 17+ / Chrome Android),
+// фоллбек — jsQR на canvas.
 
+let barcodeDetector = null;
+(async () => {
+  if ('BarcodeDetector' in window) {
+    try {
+      const formats = await BarcodeDetector.getSupportedFormats();
+      if (formats.includes('qr_code')) {
+        barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+      }
+    } catch {}
+  }
+})();
+
+const scanCanvas = document.createElement('canvas');
+const scanCtx    = scanCanvas.getContext('2d', { willReadFrequently: true });
+
+async function detectQR(source) {
+  // source — HTMLVideoElement или HTMLImageElement
+
+  // 1. Нативный BarcodeDetector (быстро, точно)
+  if (barcodeDetector) {
+    try {
+      const codes = await barcodeDetector.detect(source);
+      if (codes.length) return codes[0].rawValue;
+    } catch {}
+  }
+
+  // 2. jsQR — рисуем source на canvas, читаем пиксели
+  const w = source.videoWidth  || source.naturalWidth  || source.width;
+  const h = source.videoHeight || source.naturalHeight || source.height;
+  if (!w || !h) return null;
+
+  // Масштабируем до 640px по длинной стороне — jsQR работает быстрее
+  const scale = Math.min(1, 640 / Math.max(w, h));
+  scanCanvas.width  = Math.round(w * scale);
+  scanCanvas.height = Math.round(h * scale);
+  scanCtx.drawImage(source, 0, 0, scanCanvas.width, scanCanvas.height);
+
+  const imageData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+  const result = jsQR(imageData.data, imageData.width, imageData.height, {
+    inversionAttempts: 'attemptBoth',
+  });
+  return result ? result.data : null;
+}
+
+// ── Show result / error ───────────────────────────────────────────
 function showDecodeResult(qrText) {
   const resultEl = document.getElementById('decode-result');
   const errorEl  = document.getElementById('decode-error');
@@ -283,11 +328,15 @@ function showDecodeResult(qrText) {
   }
 }
 
-async function stopCamera() {
-  if (scanner && scannerRunning) {
-    try { await scanner.stop(); } catch {}
-    scannerRunning = false;
-  }
+// ── Video scanner ─────────────────────────────────────────────────
+let videoStream   = null;
+let scanInterval  = null;
+
+function stopCamera() {
+  if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+  if (videoStream)  { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
+  const video = document.getElementById('scan-video');
+  video.srcObject = null;
   document.getElementById('scan-active').style.display = 'none';
   document.getElementById('scan-idle').style.display   = 'block';
 }
@@ -299,38 +348,64 @@ async function startCamera() {
   document.getElementById('scan-manual').style.display   = 'none';
   document.getElementById('scan-active').style.display   = 'block';
 
-  if (!scanner) {
-    scanner = new Html5Qrcode('qr-reader', { verbose: false });
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } },
+      audio: false,
+    });
+  } catch {
+    document.getElementById('scan-active').style.display = 'none';
+    showIdle();
+    showToast('Нет доступа к камере — попробуйте «Сфотографировать»');
+    return;
   }
 
-  try {
-    await scanner.start(
-      { facingMode: 'environment' },
-      {
-        fps: 15,
-        // Фиксированный qrbox — функция ломается на iOS Safari
-        qrbox: { width: 250, height: 250 },
-        // Использует нативный BarcodeDetector на iOS 17+ и Chrome Android
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-        // НЕ передаём aspectRatio — ломает видеопоток на iOS
-      },
-      (decodedText) => {
-        stopCamera();
-        if (navigator.vibrate) navigator.vibrate(60);
-        showDecodeResult(decodedText);
-      },
-      () => {} // per-frame miss — норма пока QR не в кадре
-    );
-    scannerRunning = true;
-  } catch (err) {
-    scannerRunning = false;
-    document.getElementById('scan-active').style.display = 'none';
-    // iOS может не поддерживать getUserMedia в Safari — показываем кнопку фото
-    showIdle();
-    showToast('Попробуйте кнопку «Сфотографировать»');
-  }
+  const video = document.getElementById('scan-video');
+  video.srcObject = videoStream;
+  // iOS требует явного play() после srcObject
+  try { await video.play(); } catch {}
+
+  // Сканируем каждые 300мс — баланс между скоростью и нагрузкой на CPU
+  scanInterval = setInterval(async () => {
+    if (video.readyState < video.HAVE_ENOUGH_DATA) return;
+    const text = await detectQR(video);
+    if (text) {
+      stopCamera();
+      if (navigator.vibrate) navigator.vibrate(60);
+      showDecodeResult(text);
+    }
+  }, 300);
 }
 
+// ── Photo capture (надёжный вариант для iOS) ──────────────────────
+document.getElementById('photo-btn').addEventListener('click', () => {
+  document.getElementById('photo-input').click();
+});
+
+document.getElementById('photo-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+
+  document.getElementById('decode-result').style.display = 'none';
+  document.getElementById('decode-error').style.display  = 'none';
+
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  await new Promise(res => { img.onload = res; });
+  URL.revokeObjectURL(img.src);
+
+  const text = await detectQR(img);
+  if (text) {
+    if (navigator.vibrate) navigator.vibrate(60);
+    showDecodeResult(text);
+  } else {
+    document.getElementById('decode-error-text').textContent = 'QR-код не найден на фото';
+    document.getElementById('decode-error').style.display = 'flex';
+  }
+});
+
+// ── UI controls ───────────────────────────────────────────────────
 function showManual() {
   stopCamera();
   document.getElementById('scan-idle').style.display   = 'none';
@@ -343,31 +418,6 @@ function showIdle() {
   document.getElementById('scan-manual').style.display = 'none';
 }
 
-// «Сфотографировать» — нативная камера iOS, потом декодируем файл
-document.getElementById('photo-btn').addEventListener('click', () => {
-  document.getElementById('photo-input').click();
-});
-
-document.getElementById('photo-input').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  e.target.value = ''; // сброс чтобы можно было снова выбрать
-
-  document.getElementById('decode-result').style.display = 'none';
-  document.getElementById('decode-error').style.display  = 'none';
-
-  if (!scanner) scanner = new Html5Qrcode('qr-reader', { verbose: false });
-
-  try {
-    const text = await scanner.scanFile(file, false);
-    if (navigator.vibrate) navigator.vibrate(60);
-    showDecodeResult(text);
-  } catch {
-    document.getElementById('decode-error-text').textContent = 'QR-код не найден на фото';
-    document.getElementById('decode-error').style.display = 'flex';
-  }
-});
-
 document.getElementById('start-scan-btn').addEventListener('click', startCamera);
 document.getElementById('stop-scan-btn').addEventListener('click', stopCamera);
 document.getElementById('manual-toggle-btn').addEventListener('click', showManual);
@@ -377,7 +427,6 @@ document.getElementById('scan-again-btn').addEventListener('click', () => {
   startCamera();
 });
 
-// Останавливаем камеру при переходе на другую вкладку
 document.querySelectorAll('.page-tab').forEach(btn => {
   btn.addEventListener('click', () => {
     if (btn.dataset.page !== 'decode') stopCamera();
