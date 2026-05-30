@@ -48,14 +48,11 @@
           <!-- Capsule number -->
           <div class="field">
             <label>Номер капсулы</label>
-            <div class="stepper">
-              <button class="step-btn" id="step-down" aria-label="Уменьшить">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              </button>
-              <input id="capsule-id" type="number" min="1" max="999" value="1" inputmode="numeric" />
-              <button class="step-btn" id="step-up" aria-label="Увеличить">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              </button>
+            <div class="capsule-picker">
+              <button class="capsule-btn active" data-capsule="0">0</button>
+              <button class="capsule-btn" data-capsule="1">1</button>
+              <button class="capsule-btn" data-capsule="2">2</button>
+              <button class="capsule-btn" data-capsule="3">3</button>
             </div>
           </div>
 

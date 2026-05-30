@@ -179,57 +179,35 @@ textarea { resize: vertical; }
   color: var(--text-muted);
 }
 
-/* ── Stepper ─────────────────────────────────────────────── */
-.stepper {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--bg);
+/* ── Capsule picker ───────────────────────────────────────── */
+.capsule-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 }
 
-.step-btn {
-  min-width: 52px;
-  min-height: 52px;
-  border: none;
-  background: transparent;
+.capsule-btn {
+  min-height: 58px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: 24px;
+  font-weight: 800;
   color: var(--text-muted);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background .12s, color .12s;
+  transition: border-color .15s, background .15s, color .15s, transform .1s;
   -webkit-tap-highlight-color: transparent;
-  flex-shrink: 0;
+  letter-spacing: -.02em;
 }
 
-.step-btn:active {
+.capsule-btn.active {
+  border-color: var(--accent);
   background: var(--accent-light);
   color: var(--accent);
+  box-shadow: 0 2px 8px rgba(99,102,241,.2);
 }
 
-.stepper input {
-  flex: 1;
-  border: none;
-  border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  border-radius: 0;
-  background: white;
-  text-align: center;
-  font-size: 24px;
-  font-weight: 700;
-  padding: 10px 8px;
-  min-width: 0;
-  box-shadow: none;
-}
-
-.stepper input:focus {
-  border-color: var(--border);
-  box-shadow: none;
-  background: white;
-}
+.capsule-btn:active { transform: scale(.93); }
 
 /* ── Toggle switch ───────────────────────────────────────── */
 .toggle {
@@ -755,7 +733,7 @@ textarea { resize: vertical; }
 /* Hover only for pointer devices */
 @media (hover: hover) {
   .page-tab:not(.active):hover { background: var(--bg); color: var(--text); }
-  .step-btn:hover { background: var(--accent-light); color: var(--accent); }
+  .capsule-btn:not(.active):hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
   .quick-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
   .icon-btn:hover { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
   .generate-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }

@@ -104,24 +104,15 @@ document.querySelectorAll('.page-tab').forEach(btn => {
   });
 });
 
-// ── Stepper ───────────────────────────────────────────────────────
-const capsuleInput = document.getElementById('capsule-id');
+// ── Capsule picker ────────────────────────────────────────────────
+let selectedCapsule = 0;
 
-document.getElementById('step-down').addEventListener('click', () => {
-  const v = parseInt(capsuleInput.value) || 1;
-  capsuleInput.value = Math.max(1, v - 1);
-});
-
-document.getElementById('step-up').addEventListener('click', () => {
-  const v = parseInt(capsuleInput.value) || 1;
-  capsuleInput.value = Math.min(999, v + 1);
-});
-
-capsuleInput.addEventListener('change', () => {
-  let v = parseInt(capsuleInput.value);
-  if (isNaN(v) || v < 1) v = 1;
-  if (v > 999) v = 999;
-  capsuleInput.value = v;
+document.querySelectorAll('.capsule-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.capsule-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedCapsule = parseInt(btn.dataset.capsule);
+  });
 });
 
 // ── Quick time buttons ────────────────────────────────────────────
@@ -148,11 +139,7 @@ function isMobile() { return window.innerWidth <= 680; }
 function generate() {
   if (document.activeElement) document.activeElement.blur();
 
-  const capsuleId = parseInt(capsuleInput.value);
-  if (isNaN(capsuleId) || capsuleId < 1 || capsuleId > 999) {
-    showToast('Введите номер капсулы от 1 до 999');
-    return;
-  }
+  const capsuleId = selectedCapsule;
 
   const startTime = getDateTime();
   if (!startTime || isNaN(startTime.getTime())) {
@@ -232,7 +219,6 @@ function generate() {
 }
 
 document.getElementById('generate-btn').addEventListener('click', generate);
-capsuleInput.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
 
 // ── Download PNG ──────────────────────────────────────────────────
 document.getElementById('download-png').addEventListener('click', () => {
@@ -249,8 +235,7 @@ document.getElementById('download-png').addEventListener('click', () => {
   ctx.drawImage(canvas, pad, pad);
 
   const link = document.createElement('a');
-  const capsuleId = parseInt(capsuleInput.value) || 1;
-  link.download = `qr-capsule-${capsuleId}.png`;
+  link.download = `qr-capsule-${selectedCapsule}.png`;
   link.href = out.toDataURL('image/png');
   link.click();
   showToast('PNG сохранён');
