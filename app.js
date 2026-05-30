@@ -56,21 +56,18 @@ function decode(qrText) {
 
 // ── Date/time helpers ─────────────────────────────────────────────
 function toDateInputValue(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const tz = getTzOffset() ?? 0;
+  const shifted = new Date(d.getTime() + tz * 3_600_000);
+  const y   = shifted.getUTCFullYear();
+  const m   = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(shifted.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
 function toTimeInputValue(d) {
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-function formatDateTime(d) {
-  // getHours/getMinutes/getDate — гарантированно локальное время.
-  // toLocaleString('ru-RU') на iOS Safari иногда применяет UTC вместо local.
-  const p = n => String(n).padStart(2, '0');
-  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`;
+  const tz = getTzOffset() ?? 0;
+  const shifted = new Date(d.getTime() + tz * 3_600_000);
+  return `${String(shifted.getUTCHours()).padStart(2, '0')}:${String(shifted.getUTCMinutes()).padStart(2, '0')}`;
 }
 
 function addMinutes(d, mins) {
@@ -87,11 +84,11 @@ function getDateTime() {
   const date = document.getElementById('start-date').value;
   const time = document.getElementById('start-time').value || '00:00';
   if (!date) return null;
-  const [y, m, d]   = date.split('-').map(Number);
-  const [h, min]    = time.split(':').map(Number);
-  // Numeric constructor гарантирует локальное время на всех браузерах.
-  // new Date('YYYY-MM-DDTHH:MM') на iOS Safari может трактоваться как UTC — баг.
-  return new Date(y, m - 1, d, h, min, 0, 0);
+  const [y, m, d] = date.split('-').map(Number);
+  const [h, min]  = time.split(':').map(Number);
+  const tz = getTzOffset() ?? 0;
+  // Пользователь вводит время в timezone сервера → переводим в UTC
+  return new Date(Date.UTC(y, m - 1, d, h, min, 0) - tz * 3_600_000);
 }
 
 // ── Page tabs ─────────────────────────────────────────────────────
@@ -126,8 +123,10 @@ document.getElementById('btn-60').addEventListener('click', () => {
   setDateTime(addMinutes(base, 60));
 });
 
-// Set "now" on load
+// Init timezone, then seed inputs with current time in selected TZ
+initTimezone();
 setDateTime(new Date());
+window.addEventListener('tz-changed', () => setDateTime(new Date()));
 
 // ── QR generation ─────────────────────────────────────────────────
 let lastEncodedStr = '';
@@ -187,8 +186,8 @@ function generate() {
 
       // Session info
       document.getElementById('info-capsule').textContent = `№ ${capsuleId}`;
-      document.getElementById('info-time').textContent = formatDateTime(startTime);
-      document.getElementById('info-end').textContent = formatDateTime(endTime);
+      document.getElementById('info-time').textContent = fmt(startTime, getTzOffset() ?? 0);
+      document.getElementById('info-end').textContent  = fmt(endTime,   getTzOffset() ?? 0);
       const extRow = document.getElementById('info-ext-row');
       extRow.style.display = isExtension ? 'flex' : 'none';
       document.getElementById('session-info').style.display = 'block';
@@ -308,18 +307,15 @@ function showDecodeResult(qrText) {
     const { capsuleId, isExtension, startTime, unixTs } = decode(qrText);
     const endTime = addMinutes(startTime, SESSION_MINUTES);
 
+    const tz = getTzOffset() ?? 0;
     document.getElementById('dec-capsule').textContent = `№ ${capsuleId}`;
-    document.getElementById('dec-time').textContent    = formatDateTime(startTime);
-    document.getElementById('dec-end').textContent     = formatDateTime(endTime);
+    document.getElementById('dec-time').textContent    = fmt(startTime, tz);
+    document.getElementById('dec-end').textContent     = fmt(endTime,   tz);
     document.getElementById('dec-type').textContent    = isExtension ? 'Продление' : 'Основная';
 
-    // Отладка — помогает понять timezone-проблему
-    const tzOffset = -new Date().getTimezoneOffset();
-    const tzSign   = tzOffset >= 0 ? '+' : '-';
-    const tzHours  = String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, '0');
-    const tzMins   = String(Math.abs(tzOffset) % 60).padStart(2, '0');
+    const tzSign = tz >= 0 ? '+' : '-';
     document.getElementById('dec-debug').textContent =
-      `UTC ${tzSign}${tzHours}:${tzMins} · ts=${unixTs} · UTC: ${new Date(unixTs*1000).toISOString().slice(11,16)}`;
+      `UTC${tzSign}${Math.abs(tz)} · unix ${unixTs} · ${new Date(unixTs * 1000).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 
     resultEl.style.display = 'block';
     resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
