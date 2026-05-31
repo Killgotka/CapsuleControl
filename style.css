@@ -187,17 +187,36 @@ textarea { resize: vertical; }
 }
 
 .capsule-btn {
-  min-height: 58px;
+  min-height: 64px;
   border: 2px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg);
-  font-size: 24px;
-  font-weight: 800;
   color: var(--text-muted);
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 4px;
   transition: border-color .15s, background .15s, color .15s, transform .1s;
   -webkit-tap-highlight-color: transparent;
-  letter-spacing: -.02em;
+}
+
+.capsule-num {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: .55;
+  line-height: 1;
+}
+
+.capsule-name {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  word-break: break-word;
+  hyphens: auto;
 }
 
 .capsule-btn.active {
@@ -206,6 +225,8 @@ textarea { resize: vertical; }
   color: var(--accent);
   box-shadow: 0 2px 8px rgba(99,102,241,.2);
 }
+
+.capsule-btn.active .capsule-num { opacity: .6; }
 
 .capsule-btn:active { transform: scale(.93); }
 
