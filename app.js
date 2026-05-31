@@ -3,6 +3,8 @@
 const SALT = 'spief-2026';
 const SESSION_MINUTES = 25;
 
+const CAPSULE_NAMES = { 0: 'Конгресс', 1: 'F1', 2: 'F2', 3: 'Пресс центр' };
+
 // ── Encoding (mirrors QREncoder.cs) ──────────────────────────────
 function encode(capsuleId, isExtension, startTime) {
   const unixTs = Math.floor(startTime.getTime() / 1000);
@@ -134,7 +136,8 @@ function generate() {
       area.classList.add('has-qr');
 
       const tz = getTzOffset() ?? 0;
-      document.getElementById('info-capsule').textContent = `№ ${capsuleId}`;
+      document.getElementById('info-capsule').innerHTML =
+        `${CAPSULE_NAMES[capsuleId] ?? '—'}<span class="info-capsule-id">${capsuleId}</span>`;
       document.getElementById('info-time').textContent = fmt(startTime, tz);
       document.getElementById('info-end').textContent  = fmt(endTime,   tz);
       document.getElementById('info-ext-row').style.display = isExtension ? 'flex' : 'none';
