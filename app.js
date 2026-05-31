@@ -14,44 +14,9 @@ function encode(capsuleId, isExtension, startTime) {
     xored[i] = (raw[i] ^ (i * 7 + 13)) & 0xff;
   }
 
-  // Base64 → URL-safe
   let binary = '';
   xored.forEach(b => { binary += String.fromCharCode(b); });
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-// ── Decoding (mirrors QRValidator.cs) ────────────────────────────
-function decode(qrText) {
-  let text = qrText.trim().replace(/-/g, '+').replace(/_/g, '/');
-  const pad = text.length % 4;
-  if (pad > 0) text += '='.repeat(4 - pad);
-
-  let xored;
-  try {
-    const binary = atob(text);
-    xored = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) xored[i] = binary.charCodeAt(i);
-  } catch {
-    throw new Error('Неверный формат строки');
-  }
-
-  const raw = new Uint8Array(xored.length);
-  for (let i = 0; i < xored.length; i++) {
-    raw[i] = (xored[i] ^ (i * 7 + 13)) & 0xff;
-  }
-
-  const parts = new TextDecoder().decode(raw).split('|');
-  if (parts.length !== 4) throw new Error('Неверные данные');
-  if (parts[3] !== SALT) throw new Error('Неверная подпись');
-
-  const capsuleId = parseInt(parts[0]);
-  const isExtension = parts[1] === '1';
-  const unixTs = parseInt(parts[2]);
-  const startTime = new Date(unixTs * 1000);
-
-  if (isNaN(capsuleId) || isNaN(startTime.getTime())) throw new Error('Неверные данные');
-
-  return { capsuleId, isExtension, startTime, unixTs };
 }
 
 // ── Date/time helpers ─────────────────────────────────────────────
@@ -74,7 +39,6 @@ function addMinutes(d, mins) {
   return new Date(d.getTime() + mins * 60000);
 }
 
-// ── Set date/time inputs ──────────────────────────────────────────
 function setDateTime(d) {
   document.getElementById('start-date').value = toDateInputValue(d);
   document.getElementById('start-time').value = toTimeInputValue(d);
@@ -87,19 +51,8 @@ function getDateTime() {
   const [y, m, d] = date.split('-').map(Number);
   const [h, min]  = time.split(':').map(Number);
   const tz = getTzOffset() ?? 0;
-  // Пользователь вводит время в timezone сервера → переводим в UTC
   return new Date(Date.UTC(y, m - 1, d, h, min, 0) - tz * 3_600_000);
 }
-
-// ── Page tabs ─────────────────────────────────────────────────────
-document.querySelectorAll('.page-tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('page-' + btn.dataset.page).classList.add('active');
-  });
-});
 
 // ── Capsule picker ────────────────────────────────────────────────
 let selectedCapsule = 0;
@@ -131,15 +84,12 @@ window.addEventListener('tz-changed', () => setDateTime(new Date()));
 // ── QR generation ─────────────────────────────────────────────────
 let lastEncodedStr = '';
 
-const ecLevels = { H: QRCode.CorrectLevel.H };
-
 function isMobile() { return window.innerWidth <= 680; }
 
 function generate() {
   if (document.activeElement) document.activeElement.blur();
 
   const capsuleId = selectedCapsule;
-
   const startTime = getDateTime();
   if (!startTime || isNaN(startTime.getTime())) {
     showToast('Укажите дату и время начала');
@@ -155,7 +105,6 @@ function generate() {
   const placeholder = document.getElementById('qr-placeholder');
   const area = document.getElementById('qr-area');
 
-  // Render QR into temp div
   const tmp = document.createElement('div');
   tmp.style.cssText = 'position:absolute;visibility:hidden;left:-9999px';
   document.body.appendChild(tmp);
@@ -184,16 +133,14 @@ function generate() {
       canvas.style.display = 'block';
       area.classList.add('has-qr');
 
-      // Session info
+      const tz = getTzOffset() ?? 0;
       document.getElementById('info-capsule').textContent = `№ ${capsuleId}`;
-      document.getElementById('info-time').textContent = fmt(startTime, getTzOffset() ?? 0);
-      document.getElementById('info-end').textContent  = fmt(endTime,   getTzOffset() ?? 0);
-      const extRow = document.getElementById('info-ext-row');
-      extRow.style.display = isExtension ? 'flex' : 'none';
+      document.getElementById('info-time').textContent = fmt(startTime, tz);
+      document.getElementById('info-end').textContent  = fmt(endTime,   tz);
+      document.getElementById('info-ext-row').style.display = isExtension ? 'flex' : 'none';
       document.getElementById('session-info').style.display = 'block';
       document.getElementById('preview-actions').style.display = 'flex';
 
-      // Encoded string
       document.getElementById('encoded-str').textContent = encoded;
       document.getElementById('encoded-wrap').style.display = 'block';
 
@@ -210,7 +157,7 @@ function generate() {
       if (src.complete) drawQR();
       else src.onload = drawQR;
     }
-  } catch (e) {
+  } catch {
     showToast('Ошибка генерации QR-кода');
   } finally {
     document.body.removeChild(tmp);
@@ -246,196 +193,6 @@ document.getElementById('copy-code').addEventListener('click', () => {
   navigator.clipboard.writeText(lastEncodedStr)
     .then(() => showToast('Код скопирован'))
     .catch(() => showToast('Не удалось скопировать'));
-});
-
-// ── QR detection core ─────────────────────────────────────────────
-// Пробует BarcodeDetector (нативный, iOS 17+ / Chrome Android),
-// фоллбек — jsQR на canvas.
-
-let barcodeDetector = null;
-(async () => {
-  if ('BarcodeDetector' in window) {
-    try {
-      const formats = await BarcodeDetector.getSupportedFormats();
-      if (formats.includes('qr_code')) {
-        barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
-      }
-    } catch {}
-  }
-})();
-
-const scanCanvas = document.createElement('canvas');
-const scanCtx    = scanCanvas.getContext('2d', { willReadFrequently: true });
-
-async function detectQR(source) {
-  // source — HTMLVideoElement или HTMLImageElement
-
-  // 1. Нативный BarcodeDetector (быстро, точно)
-  if (barcodeDetector) {
-    try {
-      const codes = await barcodeDetector.detect(source);
-      if (codes.length) return codes[0].rawValue;
-    } catch {}
-  }
-
-  // 2. jsQR — рисуем source на canvas, читаем пиксели
-  const w = source.videoWidth  || source.naturalWidth  || source.width;
-  const h = source.videoHeight || source.naturalHeight || source.height;
-  if (!w || !h) return null;
-
-  // Масштабируем до 640px по длинной стороне — jsQR работает быстрее
-  const scale = Math.min(1, 640 / Math.max(w, h));
-  scanCanvas.width  = Math.round(w * scale);
-  scanCanvas.height = Math.round(h * scale);
-  scanCtx.drawImage(source, 0, 0, scanCanvas.width, scanCanvas.height);
-
-  const imageData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
-  const result = jsQR(imageData.data, imageData.width, imageData.height, {
-    inversionAttempts: 'attemptBoth',
-  });
-  return result ? result.data : null;
-}
-
-// ── Show result / error ───────────────────────────────────────────
-function showDecodeResult(qrText) {
-  const resultEl = document.getElementById('decode-result');
-  const errorEl  = document.getElementById('decode-error');
-  resultEl.style.display = 'none';
-  errorEl.style.display  = 'none';
-
-  try {
-    const { capsuleId, isExtension, startTime, unixTs } = decode(qrText);
-    const endTime = addMinutes(startTime, SESSION_MINUTES);
-
-    const tz = getTzOffset() ?? 0;
-    document.getElementById('dec-capsule').textContent = `№ ${capsuleId}`;
-    document.getElementById('dec-time').textContent    = fmt(startTime, tz);
-    document.getElementById('dec-end').textContent     = fmt(endTime,   tz);
-    document.getElementById('dec-type').textContent    = isExtension ? 'Продление' : 'Основная';
-
-    const tzSign = tz >= 0 ? '+' : '-';
-    document.getElementById('dec-debug').textContent =
-      `UTC${tzSign}${Math.abs(tz)} · unix ${unixTs} · ${new Date(unixTs * 1000).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
-
-    resultEl.style.display = 'block';
-    resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  } catch {
-    document.getElementById('decode-error-text').textContent = 'Неверная строка или подпись';
-    errorEl.style.display = 'flex';
-  }
-}
-
-// ── Video scanner ─────────────────────────────────────────────────
-let videoStream   = null;
-let scanInterval  = null;
-
-function stopCamera() {
-  if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
-  if (videoStream)  { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
-  const video = document.getElementById('scan-video');
-  video.srcObject = null;
-  document.getElementById('scan-active').style.display = 'none';
-  document.getElementById('scan-idle').style.display   = 'block';
-}
-
-async function startCamera() {
-  document.getElementById('decode-result').style.display = 'none';
-  document.getElementById('decode-error').style.display  = 'none';
-  document.getElementById('scan-idle').style.display     = 'none';
-  document.getElementById('scan-manual').style.display   = 'none';
-  document.getElementById('scan-active').style.display   = 'block';
-
-  try {
-    videoStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } },
-      audio: false,
-    });
-  } catch {
-    document.getElementById('scan-active').style.display = 'none';
-    showIdle();
-    showToast('Нет доступа к камере — попробуйте «Сфотографировать»');
-    return;
-  }
-
-  const video = document.getElementById('scan-video');
-  video.srcObject = videoStream;
-  // iOS требует явного play() после srcObject
-  try { await video.play(); } catch {}
-
-  // Сканируем каждые 300мс — баланс между скоростью и нагрузкой на CPU
-  scanInterval = setInterval(async () => {
-    if (video.readyState < video.HAVE_ENOUGH_DATA) return;
-    const text = await detectQR(video);
-    if (text) {
-      stopCamera();
-      if (navigator.vibrate) navigator.vibrate(60);
-      showDecodeResult(text);
-    }
-  }, 300);
-}
-
-// ── Photo capture (надёжный вариант для iOS) ──────────────────────
-document.getElementById('photo-btn').addEventListener('click', () => {
-  document.getElementById('photo-input').click();
-});
-
-document.getElementById('photo-input').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  e.target.value = '';
-
-  document.getElementById('decode-result').style.display = 'none';
-  document.getElementById('decode-error').style.display  = 'none';
-
-  const img = new Image();
-  img.src = URL.createObjectURL(file);
-  await new Promise(res => { img.onload = res; });
-  URL.revokeObjectURL(img.src);
-
-  const text = await detectQR(img);
-  if (text) {
-    if (navigator.vibrate) navigator.vibrate(60);
-    showDecodeResult(text);
-  } else {
-    document.getElementById('decode-error-text').textContent = 'QR-код не найден на фото';
-    document.getElementById('decode-error').style.display = 'flex';
-  }
-});
-
-// ── UI controls ───────────────────────────────────────────────────
-function showManual() {
-  stopCamera();
-  document.getElementById('scan-idle').style.display   = 'none';
-  document.getElementById('scan-manual').style.display = 'block';
-}
-
-function showIdle() {
-  stopCamera();
-  document.getElementById('scan-idle').style.display   = 'block';
-  document.getElementById('scan-manual').style.display = 'none';
-}
-
-document.getElementById('start-scan-btn').addEventListener('click', startCamera);
-document.getElementById('stop-scan-btn').addEventListener('click', stopCamera);
-document.getElementById('manual-toggle-btn').addEventListener('click', showManual);
-document.getElementById('camera-toggle-btn').addEventListener('click', showIdle);
-document.getElementById('scan-again-btn').addEventListener('click', () => {
-  document.getElementById('decode-result').style.display = 'none';
-  startCamera();
-});
-
-document.querySelectorAll('.page-tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (btn.dataset.page !== 'decode') stopCamera();
-  });
-});
-
-// ── Manual decode ─────────────────────────────────────────────────
-document.getElementById('decode-btn').addEventListener('click', () => {
-  if (document.activeElement) document.activeElement.blur();
-  const input = document.getElementById('decode-input').value.trim();
-  if (!input) { showToast('Вставьте строку QR-кода'); return; }
-  showDecodeResult(input);
 });
 
 // ── Toast ─────────────────────────────────────────────────────────
